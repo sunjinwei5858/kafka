@@ -54,6 +54,11 @@ public class DefaultPartitioner implements Partitioner {
     public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
         List<PartitionInfo> partitions = cluster.partitionsForTopic(topic);
         int numPartitions = partitions.size();
+        /**
+         * 默认策略为：如果指定了partition就直接发送到该分区；
+         * 如果没有指定分区但是指定了key，就按照keyProperties 的hash值选择分区；
+         * 如果partition和key都没有指定就使用轮询策略。而且如果key不为null
+         */
         if (keyBytes == null) {
             int nextValue = nextValue(topic);
             List<PartitionInfo> availablePartitions = cluster.availablePartitionsForTopic(topic);
