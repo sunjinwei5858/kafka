@@ -32,6 +32,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 /**
+ * kafka使用的压缩算法
  * The compression type to use
  */
 public enum CompressionType {
@@ -108,7 +109,7 @@ public enum CompressionType {
         public InputStream wrapForInput(ByteBuffer inputBuffer, byte messageVersion, BufferSupplier decompressionBufferSupplier) {
             try {
                 return new KafkaLZ4BlockInputStream(inputBuffer, decompressionBufferSupplier,
-                                                    messageVersion == RecordBatch.MAGIC_VALUE_V0);
+                        messageVersion == RecordBatch.MAGIC_VALUE_V0);
             } catch (Throwable e) {
                 throw new KafkaException(e);
             }
@@ -147,7 +148,7 @@ public enum CompressionType {
 
     /**
      * Wrap bufferStream with an OutputStream that will compress data with this CompressionType.
-     *
+     * <p>
      * Note: Unlike {@link #wrapForInput}, {@link #wrapForOutput} cannot take {@link ByteBuffer}s directly.
      * Currently, {@link MemoryRecordsBuilder#writeDefaultBatchHeader()} and {@link MemoryRecordsBuilder#writeLegacyCompressedWrapperHeader()}
      * write to the underlying buffer in the given {@link ByteBufferOutputStream} after the compressed data has been written.
@@ -216,9 +217,9 @@ public enum CompressionType {
 
     private static class ZstdConstructors {
         static final MethodHandle INPUT = findConstructor("com.github.luben.zstd.ZstdInputStream",
-            MethodType.methodType(void.class, InputStream.class));
+                MethodType.methodType(void.class, InputStream.class));
         static final MethodHandle OUTPUT = findConstructor("com.github.luben.zstd.ZstdOutputStream",
-            MethodType.methodType(void.class, OutputStream.class));
+                MethodType.methodType(void.class, OutputStream.class));
     }
 
     private static MethodHandle findConstructor(String className, MethodType methodType) {
