@@ -23,6 +23,11 @@ import org.apache.kafka.common.TopicPartition;
 import java.util.Map;
 
 /**
+ * 消费者拦截器 一个很高级的功能
+ * 而消费者拦截器支持在消费消息前以及提交位移后编写特定逻辑
+ *
+ * 这两种拦截器都支持链的方式，即你可以将一组拦截器串连成一个大的拦截器，Kafka 会按照添加顺序依次执行拦截器逻辑。
+ *
  * A plugin interface that allows you to intercept (and possibly mutate) records received by the consumer. A primary use-case
  * is for third-party components to hook into the consumer applications for custom monitoring, logging, etc.
  *

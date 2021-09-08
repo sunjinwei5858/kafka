@@ -19,6 +19,8 @@ package org.apache.kafka.clients.producer;
 import org.apache.kafka.common.Configurable;
 
 /**
+ * 生产者拦截器，一个很高级的功能
+ * 允许你在发送消息前以及消息提交成功后植入你的拦截器逻辑；
  * A plugin interface that allows you to intercept (and possibly mutate) the records received by the producer before
  * they are published to the Kafka cluster.
  * <p>

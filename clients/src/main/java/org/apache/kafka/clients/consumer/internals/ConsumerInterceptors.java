@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 支持拦截器链的模式 类似责任链
  * A container that holds the list {@link org.apache.kafka.clients.consumer.ConsumerInterceptor}
  * and wraps calls to the chain of custom interceptors.
  */
