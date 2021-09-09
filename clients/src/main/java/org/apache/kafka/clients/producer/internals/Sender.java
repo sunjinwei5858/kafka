@@ -308,16 +308,21 @@ public class Sender implements Runnable {
         }
 
         long currentTimeMs = time.milliseconds();
+        // !!!调用 sendProducerData 方法发送消息。
         long pollTimeout = sendProducerData(currentTimeMs);
+        // !!!调用这个方法的作用？
+        // 真正的网络请求
         client.poll(pollTimeout, currentTimeMs);
     }
 
     private long sendProducerData(long now) {
         Cluster cluster = metadata.fetch();
         // get the list of partitions with data ready to send
+        // 首先根据当前时间，根据缓存队列中的数据判断哪些 topic 的 哪些分区已经达到发送条件
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
+        // 如果在待发送的消息未找到其路由信息，则需要首先去 broker 服务器拉取对应的路由信息(分区的 leader 节点信息)。
         if (!result.unknownLeaderTopics.isEmpty()) {
             // The set of topics with unknown leader contains topics with leader election pending as well as
             // topics which may have expired. Add the topic again to metadata to ensure it is included
@@ -331,6 +336,7 @@ public class Sender implements Runnable {
         }
 
         // remove any nodes we aren't ready to send to
+        // 移除在网络层面没有准备好的分区，并且计算在接下来多久的时间间隔内，该分区都将处于未准备状态。
         Iterator<Node> iter = result.readyNodes.iterator();
         long notReadyTimeout = Long.MAX_VALUE;
         while (iter.hasNext()) {

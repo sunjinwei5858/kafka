@@ -512,6 +512,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     /**
+     * 网络请求
      * Do actual reads and writes to sockets.
      *
      * @param timeout The maximum amount of time to wait (in ms) for responses if there are none immediately,
@@ -535,6 +536,7 @@ public class NetworkClient implements KafkaClient {
 
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
+            // 该方法中会通过收到调用 NIO 中的 Selector#select() 方法，对通道的读写就绪事件进行处理，当写事件就绪后，就会将通道中的消息发送到远端的 broke
             this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs));
         } catch (IOException e) {
             log.error("Unexpected error during I/O", e);
