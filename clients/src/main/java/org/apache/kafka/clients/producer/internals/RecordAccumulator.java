@@ -78,6 +78,7 @@ public final class RecordAccumulator {
     private final BufferPool free;
     private final Time time;
     private final ApiVersions apiVersions;
+    // !!! 生产者为每一个topic的每一个分区维护一个队列 ArrayQueue 内部存放的元素为 ProducerBatch，即代表一个批次，即 Kafka 消息发送是按批发送的
     private final ConcurrentMap<TopicPartition, Deque<ProducerBatch>> batches;
     private final IncompleteBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.
