@@ -58,6 +58,7 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 
 /**
+ * 这个类是如何保证线程安全的呢？
  * This class acts as a queue that accumulates records into {@link MemoryRecords}
  * instances to be sent to the server.
  * <p>
@@ -75,6 +76,7 @@ public final class RecordAccumulator {
     private final int lingerMs;
     private final long retryBackoffMs;
     private final int deliveryTimeoutMs;
+    // buffer pool
     private final BufferPool free;
     private final Time time;
     private final ApiVersions apiVersions;
@@ -196,18 +198,23 @@ public final class RecordAccumulator {
         try {
             // check if we have an in-progress batch
             Deque<ProducerBatch> dq = getOrCreateDeque(tp);
+            // 这里使用了synchronized关键字来保证线程安全 锁对象是Deque 保证了同一个队列的消息 线程安全
             synchronized (dq) {
                 if (closed)
                     throw new KafkaException("Producer closed while send in progress");
+                // tryAppend进行添加
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, headers, callback, dq);
+                // 如果添加成功 那么直接返回结果
                 if (appendResult != null)
                     return appendResult;
             }
 
             // we don't have an in-progress record batch try to allocate a new batch
+            // 走到这里说明内存不够 需要重新申请内存 然后进行重试
             byte maxUsableMagic = apiVersions.maxUsableProduceMagic();
             int size = Math.max(this.batchSize, AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
+            // 申请内存
             buffer = free.allocate(size, maxTimeToBlock);
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
@@ -219,11 +226,12 @@ public final class RecordAccumulator {
                     // Somebody else found us a batch, return the one we waited for! Hopefully this doesn't happen often...
                     return appendResult;
                 }
-
+                // 如果还是没有添加成功 重新生成一个ProducerBatch来装批量消息
+                // 批量消息的
                 MemoryRecordsBuilder recordsBuilder = recordsBuilder(buffer, maxUsableMagic);
                 ProducerBatch batch = new ProducerBatch(tp, recordsBuilder, time.milliseconds());
                 FutureRecordMetadata future = Utils.notNull(batch.tryAppend(timestamp, key, value, headers, callback, time.milliseconds()));
-
+                // 将ProducerBatch批量消息对象放入队列中
                 dq.addLast(batch);
                 incomplete.add(batch);
 
@@ -258,6 +266,12 @@ public final class RecordAccumulator {
                                          Callback callback, Deque<ProducerBatch> deque) {
         ProducerBatch last = deque.peekLast();
         if (last != null) {
+            // 纵观 RecordAccumulator append 的流程，
+            // 基本上就是从双端队列获取一个未填充完毕的 ProducerBatch（消息批次），
+            // 然后尝试将其写入到该批次中（缓存、内存中），
+            // 如果追加失败，则尝试创建一个新的 ProducerBatch 然后继续追加。
+
+            // 如何向 ProducerBatch 中写入消息。
             FutureRecordMetadata future = last.tryAppend(timestamp, key, value, headers, callback, time.milliseconds());
             if (future == null)
                 last.closeForRecordAppends();

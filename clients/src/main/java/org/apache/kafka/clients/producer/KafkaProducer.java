@@ -919,6 +919,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
              */
             RecordAccumulator.RecordAppendResult result = accumulator.append(tp, timestamp, serializedKey,
                     serializedValue, headers, interceptCallback, remainingWaitMs);
+            // 如果缓冲区满了 那么唤醒sender线程 发送消息
             if (result.batchIsFull || result.newBatchCreated) {
                 log.trace("Waking up the sender since topic {} partition {} is either full or getting a new batch", record.topic(), partition);
                 this.sender.wakeup();
@@ -929,9 +930,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             // for other exceptions throw directly
         } catch (ApiException e) {
             log.debug("Exception occurred during message send:", e);
+            // 捕获了api异常 这样callback回调函数就起作用了
             if (callback != null)
                 callback.onCompletion(null, e);
             this.errors.record();
+            // 拦截器这里进行发送onSendError信息
             this.interceptors.onSendError(record, tp, e);
             return new FutureFailure(e);
         } catch (InterruptedException e) {

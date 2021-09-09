@@ -21,6 +21,10 @@ import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 
 /**
+ * 用于封装一条消息的 ProducerRecord 的类图
+ * 先来认识一下 kafka 是如何对一条消息进行抽象的。
+ * ProducerRecord 的核心属性，即构成 消息的6大核心要素。
+ *
  * A key/value pair to be sent to Kafka. This consists of a topic name to which the record is being sent, an optional
  * partition number, and an optional key and value.
  * <p>
@@ -56,13 +60,13 @@ public class ProducerRecord<K, V> {
     /**
      * Creates a record with a specified timestamp to be sent to a specified topic and partition
      * 
-     * @param topic The topic the record will be appended to
-     * @param partition The partition to which the record should be sent
+     * @param topic The topic the record will be appended to 消息所属的主题。
+     * @param partition The partition to which the record should be sent 消息所在主题的队列数，可以人为指定，如果指定了 key 的话，会使用 key 的 hashCode 与队列总数进行取模来选择分区，如果前面两者都未指定，则会轮询主题下的所有分区。
      * @param timestamp The timestamp of the record, in milliseconds since epoch. If null, the producer will assign
      *                  the timestamp using System.currentTimeMillis().
-     * @param key The key that will be included in the record
+     * @param key The key that will be included in the record 消息键，如果指定该值，则会使用该值的 hashcode 与 队列数进行取模来选择分区。
      * @param value The record contents
-     * @param headers the headers that will be included in the record
+     * @param headers the headers that will be included in the record 该消息的额外属性对，与消息体分开存储.
      */
     public ProducerRecord(String topic, Integer partition, Long timestamp, K key, V value, Iterable<Header> headers) {
         if (topic == null)
