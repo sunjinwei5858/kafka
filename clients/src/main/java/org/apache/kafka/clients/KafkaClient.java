@@ -24,6 +24,7 @@ import java.io.Closeable;
 import java.util.List;
 
 /**
+ * kafka 网络通信客户端，主要封装与 broker 的网络通信。
  * The interface for {@link NetworkClient}
  */
 public interface KafkaClient extends Closeable {

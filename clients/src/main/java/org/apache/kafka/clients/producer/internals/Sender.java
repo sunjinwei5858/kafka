@@ -86,21 +86,33 @@ public class Sender implements Runnable {
     /* the metadata for the client */
     private final Metadata metadata;
 
+    /**
+     * 是否需要保证消息的顺序性。
+     */
     /* the flag indicating whether the producer should guarantee the message order on the broker or not. */
     private final boolean guaranteeMessageOrder;
 
     /* the maximum request size to attempt to send to the server */
     private final int maxRequestSize;
 
+    /**
+     * 用来定义消息“已提交”的条件(标准)，就是 Broker 端向客户端承偌已提交的条件，可选值如下0、-1、1.
+     */
     /* the number of acknowledgements to request from the server */
     private final short acks;
 
+    /**
+     * 重试次数。
+     */
     /* the number of times to retry a failed request before giving up */
     private final int retries;
 
     /* the clock instance used for getting the time */
     private final Time time;
 
+    /**
+     * 该线程状态，为 true 表示运行中。
+     */
     /* true while the sender thread is still running */
     private volatile boolean running;
 
@@ -313,11 +325,22 @@ public class Sender implements Runnable {
         client.poll(pollTimeout, now);
     }
 
+    /**
+     *
+     * @param now
+     * @return
+     */
     private long sendProducerData(long now) {
         Cluster cluster = metadata.fetch();
         // get the list of partitions with data ready to send
+        /**
+         * 首先根据当前时间，根据缓存队列中的数据判断哪些 topic 的 哪些分区已经达到发送条件
+         */
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
+        /**
+         * 如果在待发送的消息未找到其路由信息，则需要首先去 broker 服务器拉取对应的路由信息(分区的 leader 节点信息)。
+         */
         // if there are any partitions whose leaders are not known yet, force metadata update
         if (!result.unknownLeaderTopics.isEmpty()) {
             // The set of topics with unknown leader contains topics with leader election pending as well as
@@ -331,6 +354,9 @@ public class Sender implements Runnable {
             this.metadata.requestUpdate();
         }
 
+        /**
+         * 移除在网络层面没有准备好的分区，并且计算在接下来多久的时间间隔内，该分区都将处于未准备状态。
+         */
         // remove any nodes we aren't ready to send to
         Iterator<Node> iter = result.readyNodes.iterator();
         long notReadyTimeout = Long.MAX_VALUE;

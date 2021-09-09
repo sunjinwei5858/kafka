@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
+ * 元数据管理器，即 topic 的路由分区信息。
  * A class encapsulating some of the logic around metadata.
  * <p>
  * 元数据这个类 被客户端线程共享和后台的sender线程

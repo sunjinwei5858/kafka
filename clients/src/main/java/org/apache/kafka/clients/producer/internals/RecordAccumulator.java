@@ -58,6 +58,7 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 
 /**
+ * 消息记录累积器，消息追加的入口(RecordAccumulator 的 append 方法)。
  * This class acts as a queue that accumulates records into {@link MemoryRecords}
  * instances to be sent to the server.
  * <p>
