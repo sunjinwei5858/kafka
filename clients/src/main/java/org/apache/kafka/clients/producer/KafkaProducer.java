@@ -725,6 +725,9 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     }
 
     /**
+     * 从上面的 API 可以得知，用户在使用 KafkaProducer 发送消息时，
+     * 首先需要将待发送的消息封装成 ProducerRecord，返回的是一个 Future 对象，典型的 Future 设计模式。
+     * 在发送时也可以指定一个 Callable 接口用来执行消息发送的回调。
      * Asynchronously send a record to a topic. Equivalent to <code>send(record, null)</code>.
      * See {@link #send(ProducerRecord, Callback)} for details.
      */
@@ -854,6 +857,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     }
 
     /**
+     * 异步实现发送消息到broker 发消息是由sender线程完成的
      * Implementation of asynchronously send a record to a topic.
      */
     private Future<RecordMetadata> doSend(ProducerRecord<K, V> record, Callback callback) {
@@ -887,6 +891,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                         " to class " + producerConfig.getClass(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG).getName() +
                         " specified in value.serializer", cce);
             }
+            // 获取分区
             int partition = partition(record, serializedKey, serializedValue, cluster);
             tp = new TopicPartition(record.topic(), partition);
 
@@ -904,6 +909,14 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             if (transactionManager != null && transactionManager.isTransactional())
                 transactionManager.maybeAddPartitionToTransaction(tp);
 
+            /**
+             * !!!
+             * 将消息追加到缓存区，这将是本文重点需要探讨的。
+             * 如果当前缓存区已写满或创建了一个新的缓存区，则唤醒 Sender(消息发送线程)，
+             * 将缓存区中的消息发送到 broker 服务器，最终返回 future。
+             * 这里是经典的 Future 设计模式，
+             * 从这里也能得知，doSend 方法执行完成后，此时消息还不一定成功发送到 broker。
+             */
             RecordAccumulator.RecordAppendResult result = accumulator.append(tp, timestamp, serializedKey,
                     serializedValue, headers, interceptCallback, remainingWaitMs);
             if (result.batchIsFull || result.newBatchCreated) {
