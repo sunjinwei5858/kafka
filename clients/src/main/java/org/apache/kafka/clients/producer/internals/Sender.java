@@ -17,6 +17,7 @@
 package org.apache.kafka.clients.producer.internals;
 
 import java.util.ArrayList;
+
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.ClientRequest;
 import org.apache.kafka.clients.ClientResponse;
@@ -68,6 +69,7 @@ import java.util.Map;
 import static org.apache.kafka.common.record.RecordBatch.NO_TIMESTAMP;
 
 /**
+ * sender线程 实现了runnable接口
  * The background thread that handles the sending of produce requests to the Kafka cluster. This thread makes metadata
  * requests to renew its view of the cluster and then sends produce requests to the appropriate nodes.
  */
@@ -170,12 +172,12 @@ public class Sender implements Runnable {
     }
 
     /**
-     *  Get the in-flight batches that has reached delivery timeout.
+     * Get the in-flight batches that has reached delivery timeout.
      */
     private List<ProducerBatch> getExpiredInflightBatches(long now) {
         List<ProducerBatch> expiredBatches = new ArrayList<>();
 
-        for (Iterator<Map.Entry<TopicPartition, List<ProducerBatch>>> batchIt = inFlightBatches.entrySet().iterator(); batchIt.hasNext();) {
+        for (Iterator<Map.Entry<TopicPartition, List<ProducerBatch>>> batchIt = inFlightBatches.entrySet().iterator(); batchIt.hasNext(); ) {
             Map.Entry<TopicPartition, List<ProducerBatch>> entry = batchIt.next();
             List<ProducerBatch> partitionInFlightBatches = entry.getValue();
             if (partitionInFlightBatches != null) {
@@ -191,7 +193,7 @@ public class Sender implements Runnable {
                             expiredBatches.add(batch);
                         } else {
                             throw new IllegalStateException(batch.topicPartition + " batch created at " +
-                                batch.createdMs + " gets unexpected final state " + batch.finalState());
+                                    batch.createdMs + " gets unexpected final state " + batch.finalState());
                         }
                     } else {
                         accumulator.maybeUpdateNextBatchExpiryTime(batch);
@@ -281,8 +283,8 @@ public class Sender implements Runnable {
                     maybeWaitForProducerId();
                 } else if (transactionManager.hasUnresolvedSequences() && !transactionManager.hasFatalError()) {
                     transactionManager.transitionToFatalError(
-                        new KafkaException("The client hasn't received acknowledgment for " +
-                            "some previously sent messages and can no longer retry them. It isn't safe to continue."));
+                            new KafkaException("The client hasn't received acknowledgment for " +
+                                    "some previously sent messages and can no longer retry them. It isn't safe to continue."));
                 } else if (transactionManager.hasInFlightTransactionalRequest() || maybeSendTransactionalRequest(now)) {
                     // as long as there are outstanding transactional requests, we simply wait for them to return
                     client.poll(retryBackoffMs, now);
@@ -325,7 +327,7 @@ public class Sender implements Runnable {
                 this.metadata.add(topic);
 
             log.debug("Requesting metadata update due to unknown leader topics from the batched records: {}",
-                result.unknownLeaderTopics);
+                    result.unknownLeaderTopics);
             this.metadata.requestUpdate();
         }
 
@@ -363,7 +365,7 @@ public class Sender implements Runnable {
             log.trace("Expired {} batches in accumulator", expiredBatches.size());
         for (ProducerBatch expiredBatch : expiredBatches) {
             String errorMessage = "Expiring " + expiredBatch.recordCount + " record(s) for " + expiredBatch.topicPartition
-                + ":" + (now - expiredBatch.createdMs) + " ms has passed since batch creation";
+                    + ":" + (now - expiredBatch.createdMs) + " ms has passed since batch creation";
             failBatch(expiredBatch, -1, NO_TIMESTAMP, new TimeoutException(errorMessage), false);
             if (transactionManager != null && expiredBatch.inRetry()) {
                 // This ensures that no new batches are drained until the current in flight batches are fully resolved.
@@ -430,7 +432,7 @@ public class Sender implements Runnable {
                     if (nextRequestHandler.isRetry())
                         time.sleep(nextRequestHandler.retryBackoffMs());
                     ClientRequest clientRequest = client.newClientRequest(
-                        targetNode.idString(), requestBuilder, now, true, requestTimeoutMs, nextRequestHandler);
+                            targetNode.idString(), requestBuilder, now, true, requestTimeoutMs, nextRequestHandler);
                     transactionManager.setInFlightTransactionalRequestCorrelationId(clientRequest.correlationId());
                     log.debug("Sending transactional request {} to node {}", requestBuilder, targetNode);
                     client.send(clientRequest, now);
@@ -537,7 +539,7 @@ public class Sender implements Runnable {
         int correlationId = requestHeader.correlationId();
         if (response.wasDisconnected()) {
             log.trace("Cancelled request with header {} due to node {} being disconnected",
-                requestHeader, response.destination());
+                    requestHeader, response.destination());
             for (ProducerBatch batch : batches.values())
                 completeBatch(batch, new ProduceResponse.PartitionResponse(Errors.NETWORK_EXCEPTION), correlationId, now, 0L);
         } else if (response.versionMismatch() != null) {
@@ -569,10 +571,10 @@ public class Sender implements Runnable {
     /**
      * Complete or retry the given batch of records.
      *
-     * @param batch The record batch
-     * @param response The produce response
+     * @param batch         The record batch
+     * @param response      The produce response
      * @param correlationId The correlation id for the request
-     * @param now The current POSIX timestamp in milliseconds
+     * @param now           The current POSIX timestamp in milliseconds
      */
     private void completeBatch(ProducerBatch batch, ProduceResponse.PartitionResponse response, long correlationId,
                                long now, long throttleUntilTimeMs) {
@@ -583,11 +585,11 @@ public class Sender implements Runnable {
             // If the batch is too large, we split the batch and send the split batches again. We do not decrement
             // the retry attempts in this case.
             log.warn(
-                "Got error produce response in correlation id {} on topic-partition {}, splitting and retrying ({} attempts left). Error: {}",
-                correlationId,
-                batch.topicPartition,
-                this.retries - batch.attempts(),
-                error);
+                    "Got error produce response in correlation id {} on topic-partition {}, splitting and retrying ({} attempts left). Error: {}",
+                    correlationId,
+                    batch.topicPartition,
+                    this.retries - batch.attempts(),
+                    error);
             if (transactionManager != null)
                 transactionManager.removeInFlightBatch(batch);
             this.accumulator.splitAndReenqueue(batch);
@@ -596,11 +598,11 @@ public class Sender implements Runnable {
         } else if (error != Errors.NONE) {
             if (canRetry(batch, response, now)) {
                 log.warn(
-                    "Got error produce response with correlation id {} on topic-partition {}, retrying ({} attempts left). Error: {}",
-                    correlationId,
-                    batch.topicPartition,
-                    this.retries - batch.attempts() - 1,
-                    error);
+                        "Got error produce response with correlation id {} on topic-partition {}, retrying ({} attempts left). Error: {}",
+                        correlationId,
+                        batch.topicPartition,
+                        this.retries - batch.attempts() - 1,
+                        error);
                 if (transactionManager == null) {
                     reenqueueBatch(batch, now);
                 } else if (transactionManager.hasProducerIdAndEpoch(batch.producerId(), batch.producerEpoch())) {
@@ -637,8 +639,8 @@ public class Sender implements Runnable {
             if (error.exception() instanceof InvalidMetadataException) {
                 if (error.exception() instanceof UnknownTopicOrPartitionException) {
                     log.warn("Received unknown topic or partition error in produce request on partition {}. The " +
-                            "topic-partition may not exist or the user may not have Describe access to it",
-                        batch.topicPartition);
+                                    "topic-partition may not exist or the user may not have Describe access to it",
+                            batch.topicPartition);
                 } else {
                     log.warn("Received invalid metadata error in produce request on partition {} due to {}. Going " +
                             "to request metadata update now", batch.topicPartition, error.exception().toString());
@@ -664,11 +666,11 @@ public class Sender implements Runnable {
         if (transactionManager != null) {
             if (transactionManager.hasProducerIdAndEpoch(batch.producerId(), batch.producerEpoch())) {
                 transactionManager
-                    .maybeUpdateLastAckedSequence(batch.topicPartition, batch.baseSequence() + batch.recordCount - 1);
+                        .maybeUpdateLastAckedSequence(batch.topicPartition, batch.baseSequence() + batch.recordCount - 1);
                 log.debug("ProducerId: {}; Set last ack'd sequence number for topic-partition {} to {}",
-                    batch.producerId(),
-                    batch.topicPartition,
-                    transactionManager.lastAckedSequence(batch.topicPartition));
+                        batch.producerId(),
+                        batch.topicPartition,
+                        transactionManager.lastAckedSequence(batch.topicPartition));
             }
             transactionManager.updateLastAckedOffset(response, batch);
             transactionManager.removeInFlightBatch(batch);
@@ -686,13 +688,13 @@ public class Sender implements Runnable {
     }
 
     private void failBatch(ProducerBatch batch, long baseOffset, long logAppendTime, RuntimeException exception,
-        boolean adjustSequenceNumbers) {
+                           boolean adjustSequenceNumbers) {
         if (transactionManager != null) {
             if (exception instanceof OutOfOrderSequenceException
                     && !transactionManager.isTransactional()
                     && transactionManager.hasProducerId(batch.producerId())) {
                 log.error("The broker returned {} for topic-partition " +
-                            "{} at offset {}. This indicates data loss on the broker, and should be investigated.",
+                                "{} at offset {}. This indicates data loss on the broker, and should be investigated.",
                         exception, batch.topicPartition, baseOffset);
 
                 // Reset the transaction state since we have hit an irrecoverable exception and cannot make any guarantees
@@ -727,10 +729,10 @@ public class Sender implements Runnable {
      */
     private boolean canRetry(ProducerBatch batch, ProduceResponse.PartitionResponse response, long now) {
         return !batch.hasReachedDeliveryTimeout(accumulator.getDeliveryTimeoutMs(), now) &&
-            batch.attempts() < this.retries &&
-            !batch.isDone() &&
-            ((response.error.exception() instanceof RetriableException) ||
-                (transactionManager != null && transactionManager.canRetry(response, batch)));
+                batch.attempts() < this.retries &&
+                !batch.isDone() &&
+                ((response.error.exception() instanceof RetriableException) ||
+                        (transactionManager != null && transactionManager.canRetry(response, batch)));
     }
 
     /**
@@ -859,7 +861,7 @@ public class Sender implements Runnable {
 
             this.metrics.addMetric(metrics.requestsInFlight, (config, now) -> client.inFlightRequestCount());
             this.metrics.addMetric(metrics.metadataAge,
-                (config, now) -> (now - metadata.lastSuccessfulUpdate()) / 1000.0);
+                    (config, now) -> (now - metadata.lastSuccessfulUpdate()) / 1000.0);
 
             this.batchSplitSensor = metrics.sensor("batch-split-rate");
             this.batchSplitSensor.add(new Meter(metrics.batchSplitRate, metrics.batchSplitTotal));

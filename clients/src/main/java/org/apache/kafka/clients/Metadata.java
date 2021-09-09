@@ -41,6 +41,7 @@ import java.util.Set;
 /**
  * A class encapsulating some of the logic around metadata.
  * <p>
+ * 元数据这个类 被客户端线程共享和后台的sender线程
  * This class is shared by the client thread (for partitioning) and the background sender thread.
  *
  * Metadata is maintained for only a subset of topics, which can be added to over time. When we request metadata for a
